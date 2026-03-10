@@ -7,113 +7,160 @@
     <groupId>com.ollvm</groupId>
     <artifactId>ollvm-deobfuscation</artifactId>
     <version>1.0.0</version>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
 
-    <name>OLLVM 反混淆工具</name>
-    <description>用于对抗 OLLVM 混淆的工具集合</description>
+    <name>OLLVM 反混淆工程</name>
+    <description>用于对抗 OLLVM 间接跳转混淆的工程化项目</description>
     <url>https://github.com/your-repo</url>
+
+    <modules>
+        <module>deobfuscation-core</module>
+        <module>unidbg-wrapper</module>
+        <module>examples</module>
+        <module>test</module>
+    </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
-        <unidbg.version>0.9.6</unidbg.version>
+        <unidbg.version>0.9.9-SNAPSHOT</unidbg.version>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>maven-central</id>
-            <name>Maven Central Repository</name>
-            <url>https://repo1.maven.org/maven2/</url>
-        </repository>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-    </repositories>
+    <dependencyManagement>
+        <dependencies>
+            <!-- 项目内部依赖 -->
+            <dependency>
+                <groupId>com.ollvm</groupId>
+                <artifactId>deobfuscation-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ollvm</groupId>
+                <artifactId>unidbg-wrapper</artifactId>
+                <version>${unidbg.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ollvm</groupId>
+                <artifactId>examples</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ollvm</groupId>
+                <artifactId>test</artifactId>
+                <version>${project.version}</version>
+                <scope>test</scope>
+            </dependency>
 
-    <dependencies>
-        <!-- Unidbg - 动态分析框架 -->
-        <dependency>
-            <groupId>com.github.unidbg</groupId>
-            <artifactId>unidbg-android</artifactId>
-            <version>${unidbg.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.unidbg</groupId>
-            <artifactId>unidbg-api</artifactId>
-            <version>${unidbg.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.unidbg</groupId>
-            <artifactId>unidbg-dynarmic</artifactId>
-            <version>${unidbg.version}</version>
-        </dependency>
+            <!-- Unicorn - 模拟器引擎 -->
+            <dependency>
+                <groupId>com.github.zhkl0228</groupId>
+                <artifactId>unicorn</artifactId>
+                <version>1.0.14</version>
+            </dependency>
+            <!-- Capstone - 反汇编引擎 -->
+            <dependency>
+                <groupId>com.github.zhkl0228</groupId>
+                <artifactId>capstone</artifactId>
+                <version>3.1.8</version>
+            </dependency>
+            <!-- Keystone - 汇编引擎 -->
+            <dependency>
+                <groupId>com.github.zhkl0228</groupId>
+                <artifactId>keystone</artifactId>
+                <version>0.9.7</version>
+            </dependency>
+            <!-- Demumble - 名称解析 -->
+            <dependency>
+                <groupId>com.github.zhkl0228</groupId>
+                <artifactId>demumble</artifactId>
+                <version>1.0.4</version>
+            </dependency>
 
-        <!-- Capstone - 反汇编引擎 -->
-        <dependency>
-            <groupId>com.github.unidbg</groupId>
-            <artifactId>unidbg-unwind</artifactId>
-            <version>${unidbg.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.unidbg</groupId>
-            <artifactId>unidbg-fetchqiling</artifactId>
-            <version>${unidbg.version}</version>
-        </dependency>
+            <!-- Apache Commons -->
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>1.15</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>4.4</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.14.0</version>
+            </dependency>
 
-        <!-- Keystone - 汇编引擎 -->
-        <dependency>
-            <groupId>com.github.keystone-engine</groupId>
-            <artifactId>keystone</artifactId>
-            <version>0.9.3</version>
-        </dependency>
+            <!-- JSON处理 -->
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>fastjson</artifactId>
+                <version>1.2.83</version>
+            </dependency>
 
-        <!-- Apache Common IO -->
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>2.11.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.12.0</version>
-        </dependency>
+            <!-- APK解析 -->
+            <dependency>
+                <groupId>net.dongliu</groupId>
+                <artifactId>apk-parser</artifactId>
+                <version>2.6.10</version>
+            </dependency>
 
-        <!-- SLF4J for logging -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>1.7.36</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>1.7.36</version>
-            <scope>runtime</scope>
-        </dependency>
+            <!-- Keystone - 备选汇编引擎 -->
+            <dependency>
+                <groupId>com.github.keystone-engine</groupId>
+                <artifactId>keystone</artifactId>
+                <version>0.9.3</version>
+            </dependency>
 
-        <!-- Jackson for JSON processing -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.13.3</version>
-        </dependency>
+            <!-- Apache Common IO -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.11.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.12.0</version>
+            </dependency>
 
-        <!-- Test dependencies -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
-            <version>3.22.0</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+            <!-- SLF4J for logging -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.7.36</version>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-simple</artifactId>
+                <version>1.7.36</version>
+                <scope>runtime</scope>
+            </dependency>
+
+            <!-- Jackson for JSON processing -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.13.3</version>
+            </dependency>
+
+            <!-- Test dependencies -->
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.13.2</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>3.22.0</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <pluginManagement>
@@ -145,15 +192,6 @@
                             </manifest>
                         </archive>
                     </configuration>
-                    <executions>
-                        <execution>
-                            <id>make-assembly</id>
-                            <phase>package</phase>
-                            <goals>
-                                <goal>single</goal>
-                            </goals>
-                        </execution>
-                    </executions>
                 </plugin>
 
                 <!-- Maven Surefire Plugin -->
@@ -222,12 +260,6 @@
             <name>Apache License, Version 2.0</name>
             <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
             <distribution>repo</distribution>
-            <comments>
-                Licensed under the Apache License, Version 2.0 (the "License");
-                you may not use this file except in compliance with the License.
-                You may obtain a copy of the License at
-                http://www.apache.org/licenses/LICENSE-2.0
-            </comments>
         </license>
     </licenses>
 

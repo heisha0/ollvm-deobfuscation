@@ -1,74 +1,112 @@
 # OLLVM 反混淆工具库
 
-这个目录包含用于对抗 OLLVM（Obfuscator-LLVM）混淆的完整工具集合。
+![Java](https://img.shields.io/badge/Java-8+-orange)
+![Maven](https://img.shields.io/badge/Maven-3.6+-red)
+![License](https://img.shields.io/badge/License-Apache%202.0-blue)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
 
-## 目录结构
+一个用于对抗 OLLVM (Obfuscator-LLVM) 混淆的完整工具集，主要针对 ARM64 Android 共享库 (.so 文件)。
+
+## 项目简介
+
+本项目采用模块化 Maven 架构，提供多种反混淆技术来对抗 OLLVM 的各种混淆方式，包括间接跳转混淆、字符串加密等。
+
+### 核心功能
+
+- **间接跳转反混淆**：使用 Unidbg 动态执行和指令级跟踪，识别并去除 OLLVM 的间接跳转混淆
+- **字符串加密反混淆**：自动识别解密函数并恢复加密字符串
+- **IDA Pro 辅助脚本**：提供静态分析工具，帮助定位混淆模式
+- **通用工具**：包含 XOR 解密等通用工具
+
+## 项目架构
 
 ```
 ollvm-deobfuscation/
-├── README.md                    # 本文件 - 使用说明
-├── src/main/java/com/ollvm/
-│   ├── indirectjump/            # 间接跳转反混淆
-│   │   └── UnidbgIndirectJumpDeobfuscator.java
-│   ├── stringencryption/        # 字符串加密反混淆
-│   │   └── UnidbgStringDecryptor.java
-│   └── utils/                   # 工具类
-│       └── XorDecryptor.java
-├── src/main/scripts/ida/
-│   └── ollvm_analysis.py
-└── pom.xml
+├── deobfuscation-core/          # 核心反混淆库
+│   ├── src/main/java/com/ollvm/
+│   │   ├── indirectjump/        # 间接跳转反混淆
+│   │   ├── stringencryption/    # 字符串加密反混淆
+│   │   └── utils/               # 工具类
+│   └── pom.xml
+├── unidbg-wrapper/              # Unidbg 模拟器框架封装
+│   ├── src/main/java/com/github/unidbg/
+│   │   ├── arm/                 # ARM64 模拟器
+│   │   ├── backend/             # 后端实现
+│   │   └── debugger/            # 调试器支持
+│   └── pom.xml
+├── examples/                    # 使用示例代码
+│   └── pom.xml
+├── test/                        # 单元测试和集成测试
+│   └── pom.xml
+├── src/main/
+│   ├── java/com/ollvm/          # 主入口
+│   └── scripts/ida/             # IDA Pro 辅助脚本
+│       └── ollvm_analysis.py
+├── pom.xml                      # Maven 父 POM
+└── README.md
 ```
 
-## 功能概述
+### 模块说明
 
-### 1. 间接跳转反混淆
-使用 Unidbg 动态执行和指令级跟踪，识别并去除 OLLVM 的间接跳转混淆。
+| 模块 | 说明 | 依赖 |
+|------|------|------|
+| **deobfuscation-core** | 核心反混淆功能库，包含间接跳转反混淆、字符串解密等 | unidbg-wrapper |
+| **unidbg-wrapper** | 精简版 Unidbg 框架，仅包含 ARM64 Android 模拟器支持 | Unicorn, Capstone, Keystone |
+| **examples** | 使用示例代码，展示如何使用反混淆功能 | deobfuscation-core, unidbg-wrapper |
+| **test** | 单元测试和集成测试 | deobfuscation-core |
 
-**特点：**
-- 动态指令跟踪和栈回溯
-- 自动识别 `csel` → `ldr` → `br` 模式
-- 计算跳转目标地址
-- 自动生成 Patch 指令
-- 输出修复后的 SO 文件
+## 环境要求
 
-### 2. 字符串加密反混淆
-使用 Unidbg 动态执行，识别解密函数并恢复加密字符串。
-
-**特点：**
-- 自动识别解密函数
-- 动态钩子解密过程
-- 恢复加密字符串
-- 生成解密报告
-
-### 3. IDA Pro 辅助脚本
-在 IDA Pro 中使用的 Python 脚本，帮助静态分析和定位混淆模式。
-
-**特点：**
-- 查找间接跳转
-- 识别解密函数候选
-- 查找地址表
-- 自动命名和着色
-- 导出分析报告
-
-### 4. 通用工具
-包含 XOR 解密等通用工具，适用于简单的字符串解密场景。
-
-## 前置条件
-
-### 系统要求
-- Java 8 或更高版本
-- Android SDK（用于 Unidbg）
-- IDA Pro 7.0 或更高版本（用于 Python 脚本）
+- **Java**：JDK 8 或更高版本
+- **Maven**：3.6 或更高版本
+- **Android SDK**：用于 Unidbg（可选，如需模拟完整 Android 环境）
+- **IDA Pro**：7.0 或更高版本（用于使用 Python 脚本，可选）
 
 ### 依赖库
-- Unidbg - 动态分析框架
-- Capstone - 反汇编引擎
-- Keystone - 汇编引擎
-- Unicorn - CPU 模拟器
+
+| 库 | 版本 | 用途 |
+|----|------|------|
+| Unicorn | 1.0.14 | CPU 模拟器引擎 |
+| Capstone | 3.1.8 | 反汇编引擎 |
+| Keystone | 0.9.7 | 汇编引擎 |
+| FastJSON | 1.2.83 | JSON 处理 |
+| Apache Commons | - | 通用工具类 |
+| SLF4J | 1.7.36 | 日志框架 |
 
 ## 快速开始
 
-### 使用间接跳转反混淆器
+### 安装
+
+```bash
+# 克隆仓库
+git clone https://github.com/your-username/ollvm-deobfuscation.git
+cd ollvm-deobfuscation
+
+# 编译项目
+mvn clean install
+
+# 编译特定模块
+mvn clean install -pl deobfuscation-core
+```
+
+### 命令行使用
+
+```bash
+# 编译并打包
+mvn clean package
+
+# 运行间接跳转反混淆
+java -cp deobfuscation-core/target/deobfuscation-core-1.0.0-jar-with-dependencies.jar \
+     com.ollvm.Main indirect-jump libobfuscated.so
+
+# 运行字符串解密
+java -cp deobfuscation-core/target/deobfuscation-core-1.0.0-jar-with-dependencies.jar \
+     com.ollvm.Main string-decrypt libobfuscated.so
+```
+
+### Java API 使用
+
+#### 间接跳转反混淆
 
 ```java
 import com.ollvm.indirectjump.UnidbgIndirectJumpDeobfuscator;
@@ -93,7 +131,7 @@ public class Main {
 }
 ```
 
-### 使用字符串解密器
+#### 字符串解密
 
 ```java
 import com.ollvm.stringencryption.UnidbgStringDecryptor;
@@ -102,7 +140,7 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        // 创建解密器
+        // 创建创建解密器
         UnidbgStringDecryptor decryptor =
             new UnidbgStringDecryptor("libobfuscated.so");
 
@@ -122,14 +160,14 @@ public class Main {
 }
 ```
 
-### 在 IDA Pro 中使用
+### IDA Pro 使用
 
 1. 打开 IDA Pro 并加载混淆的二进制文件
 2. 运行脚本：`File -> Script file... -> 选择 ollvm_analysis.py`
 3. 选择菜单选项进行分析
 
 ```python
-# 手动运行特定功能
+# 在 IDA Pro Python 控制台中
 import ollvm_analysis as ollvm
 
 # 设置调试模式
@@ -144,57 +182,55 @@ strings, candidates = ollvm.analyze_string_encryption()
 # 导出完整报告
 report = ollvm.export_analysis()
 ollvm.save_report(report, "analysis.json")
+
+# 自动命名混淆函数
+ollvm.auto_naming()
 ```
 
-## 详细使用指南
+## 详细功能说明
 
-### 间接跳转反混淆使用步骤
+### 1. 间接跳转反混淆
 
-#### 1. 准备工作
-```bash
-# 确保有混淆的 SO 文件
-ls -la libobfuscated.so
+OLLVM 使用间接跳转混淆来破坏控制流，该功能通过动态执行和指令跟踪来恢复原始控制流。
+
+**特点：**
+- 动态指令跟踪和栈回溯
+- 自动识别 `csel` → `ldr` → `br` 模式
+- 计算跳转目标地址
+- 自动生成 Patch 指令
+- 输出修复后的 SO 文件
+
+**混淆模式示例：**
+```arm64
+add  x21, x21, #0xd0         ; 基地址计算
+csel w8, w8, w10, eq         ; 条件选择索引
+ldr  x8, [x21, w8, uxtw #3]  ; 从数组加载地址
+br   x8                      ; 间接跳转
 ```
 
-#### 2. 配置 Unidbg 环境
-在项目的 pom.xml 中已包含依赖。
+### 2. 字符串加密反混淆
 
-#### 3. 运行反混淆
-```bash
-# 编译并运行
-cd ollvm-deobfuscation
-mvn clean package
-java -jar target/ollvm-deobfuscation-1.0.0-jar-with-dependencies.jar indirect-jump libobfuscated.so
-```
+识别 OLLVM 的字符串加密函数，通过动态钩子捕获解密过程。
 
-#### 4. 验证结果
-```bash
-# 检查输出文件
-ls -la libobfuscated_patch.so
+**特点：**
+- 自动识别解密函数
+- 动态钩子解密过程
+- 恢复加密字符串
+- 生成解密报告
 
-# 使用 IDA Pro 重新加载并反编译
-```
+### 3. IDA Pro 辅助脚本
 
-### 字符串加密反混淆使用步骤
+提供静态分析工具，帮助在 IDA Pro 中定位和分析混淆模式。
 
-#### 1. 识别解密函数
-先在 IDA Pro 中打开文件，使用 ollvm_analysis.py 查找解密函数。
+**功能：**
+- 查找间接跳转
+- 识别解密函数候选
+- 查找地址表
+- 自动命名和着色
+- 导出分析报告
 
-#### 2. 配置分析范围
-```java
-// 如果知道解密函数的地址，可以直接指定
-deobfuscator.setSearchRange(decryptFuncAddr, decryptFuncAddr + 0x100);
-```
+### 4. XOR 工具
 
-#### 3. 运行解密并检查报告
-```bash
-# 解密报告会自动生成
-cat libobfuscated_decrypted.txt
-```
-
-## 工具类说明
-
-### XorDecryptor
 通用的 XOR 解密工具，适用于简单的字符串解密场景。
 
 ```java
@@ -216,12 +252,28 @@ XorDecryptor.DecryptionResult result = XorDecryptor.tryMultipleKeys(data, keys);
 byte[] autoKey = XorDecryptor.autoDetectKey(data, 8);
 ```
 
+## 运行测试
+
+```bash
+# 运行所有测试
+mvn test
+
+# 运行特定模块的测试
+mvn test -pl deob
+fuscation-core
+
+# 运行测试并生成报告
+mvn test -pl test
+```
+
 ## 常见问题
 
 ### Q: 如何构建和配置 Unidbg 环境？
-A: 参考 Unidbg 官方文档：https://github.com/zhkl0228/unidbg
+
+A: 本项目已包含精简版 Unidbg 封装（unidbg-wrapper），无需额外配置。如需使用完整 Unidbg，参考 [Unidbg 官方文档](https://github.com/zhkl0228/unidbg)。
 
 ### Q: 反混淆后程序无法运行怎么办？
+
 A:
 1. 检查分析范围是否正确
 2. 尝试调整搜索范围
@@ -229,46 +281,32 @@ A:
 4. 使用更保守的 Patch 策略
 
 ### Q: IDA Pro 脚本不起作用？
+
 A:
 1. 确保 IDA Pro 版本支持 Python 3
 2. 检查脚本路径是否正确
 3. 先运行 `idc.auto_wait()` 完成自动分析
 
 ### Q: 字符串解密器找不到字符串？
+
 A:
 1. 确保运行了初始化函数
 2. 尝试手动触发解密
 3. 检查密钥是否正确提取
 
-## 混淆模式识别
-
-### 间接跳转模式
-```arm64
-add  x21, x21, #0xd0         ; 基地址计算
-csel w8, w8, w10, eq         ; 条件选择索引
-ldr  x8, [x21, w8, uxtw #3]  ; 从数组加载地址
-br   x8                      ; 间接跳转
-```
-
-### 字符串加密模式
-```c
-void decrypt_string(char *out, const char *in) {
-    for (int i = 0; i < len; i++) {
-        out[i] = in[i] ^ key[i % key_len];
-    }
-}
-```
-
-## 扩展开发
+## 开发指南
 
 ### 添加新的反混淆技术
 
-1. 在对应目录下创建新类
-2. 实现相应的接口
-3. 添加到主流程中
+1. 在 `deobfuscation-core/src/main/java/com/ollvm/` 下创建新包
+2. 实现相应的反混淆类
+3. 在 `examples` 模块中添加使用示例
+4. 在 `test` 模块中添加单元测试
 
 ```java
 // 示例：添加新的解密技术
+package com.ollvm.newtechnique;
+
 public class NewDeobfuscationTechnique {
     public boolean process(Module module) {
         // 实现你的反混淆逻辑
@@ -277,26 +315,51 @@ public class NewDeobfuscationTechnique {
 }
 ```
 
-## 注意事项
+### 贡献指南
 
-1. **法律合规**：仅用于授权的安全研究和学习
-2. **备份原始文件**：处理前务必备份
-3. **测试环境**：建议在虚拟机或测试环境中使用
-4. **伦理使用**：不要用于未授权的逆向工程
+1. Fork 本仓库
+2. 创建特性分支 (`feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 提交 Pull Request
+
+## 法律声明
+
+本项目仅供学习和安全研究使用，请遵守以下原则：
+
+- **法律合规**：仅用于授权的安全研究和学习
+- **备份原始文件**：处理前务必备份
+- **测试环境**：建议在虚拟机或测试环境中使用
+- **伦理使用**：不要用于未授权的逆向工程
+
+## 许可证
+
+本项目采用 Apache License 2.0 许可证。详见 [LICENSE](LICENSE) 文件。
+
+```
+Copyright 2024 OLLVM Deobfuscation Project
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
 
 ## 参考资料
 
 - [OLLVM 官方文档](https://github.com/obfuscator-llvm/obfuscator)
 - [Unidbg 项目](https://github.com/zhkl0228/unidbg)
-- [Capstone 反汇编](https://www.capstone-engine.org/)
-- [Keystone 汇编](https://www.keystone-engine.org/)
+- [Capstone 反汇编引擎](https://www.capstone-engine.org/)
+- [Keystone 汇编引擎](https://www.keystone-engine.org/)
 
-## 许可证
+## 联系方式
 
-仅供学习和安全研究使用。
-
----
-
-## 贡献
-
-欢迎提交问题和改进建议！
+- 提交问题：[GitHub Issues](https://github.com/your-username/ollvm-deobfuscation/issues)
+- 讨论交流：[GitHub Discussions](https://github.com/your-username/ollvm-deobfuscation/discussions)

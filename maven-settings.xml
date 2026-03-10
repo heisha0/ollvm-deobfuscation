@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+          http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+    <!-- 代理配置 - 使用 Clash for Windows 端口 7980 -->
+<!--    <proxies>-->
+<!--        <proxy>-->
+<!--            <id>http-proxy</id>-->
+<!--            <active>true</active>-->
+<!--            <protocol>http</protocol>-->
+<!--            <host>127.0.0.1</host>-->
+<!--            <port>7980</port>-->
+<!--            <nonProxyHosts>localhost|127.0.0.1|*.local</nonProxyHosts>-->
+<!--        </proxy>-->
+<!--        <proxy>-->
+<!--            <id>https-proxy</id>-->
+<!--            <active>true</active>-->
+<!--            <protocol>https</protocol>-->
+<!--            <host>127.0.0.1</host>-->
+<!--            <port>7980</port>-->
+<!--            <nonProxyHosts>localhost|127.0.0.1|*.local</nonProxyHosts>-->
+<!--        </proxy>-->
+<!--    </proxies>-->
+
+</settings>
