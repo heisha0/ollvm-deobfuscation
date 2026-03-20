@@ -26,8 +26,22 @@ build/
 libobfuscated*.so
 *.patch
 *.txt
-*.json
+
+# Ignore SO files in lib directory
+lib/*.so
+deobfuscation-core/lib/*.so
+
+# Ignore analysis reports and temporary files in tools
+tools/*.json
+tools/*.so
+tools/*.patch
+tools/*.txt
 
 # OS files
 .DS_Store
 Thumbs.db
+
+# Keep project-level config files but don't commit secrets
+.claude/settings.local.json  # User-specific local settings (keep out of git)
+.claude/.mcp.json            # Project-level MCP config (keep in git)
+claude.code                 # Claude Code session files

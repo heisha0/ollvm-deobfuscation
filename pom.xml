@@ -16,8 +16,6 @@
     <modules>
         <module>deobfuscation-core</module>
         <module>unidbg-wrapper</module>
-        <module>examples</module>
-        <module>test</module>
     </modules>
 
     <properties>
@@ -38,17 +36,6 @@
                 <groupId>com.ollvm</groupId>
                 <artifactId>unidbg-wrapper</artifactId>
                 <version>${unidbg.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.ollvm</groupId>
-                <artifactId>examples</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.ollvm</groupId>
-                <artifactId>test</artifactId>
-                <version>${project.version}</version>
-                <scope>test</scope>
             </dependency>
 
             <!-- Unicorn - 模拟器引擎 -->

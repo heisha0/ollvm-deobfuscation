@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn clean:*)",
+      "Bash(mvn test:*)",
+      "Bash(mvn dependency:tree)",
+      "mcp__claude-sessions__list_sessions",
+      "mcp__claude-sessions__delete_session",
+      "mcp__claude-sessions__rename_session",
+      "Bash(find \"E:/coding-agent/ollvm-deobfuscation\" -name \"*.java\" -type f 2>/dev/null | grep -v target)",
+      "mcp__claude-sessions__list_projects",
+      "WebFetch(domain:bbs.kanxue.com)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(tasklist)",
+      "Bash(findstr -i ida)"
+    ]
+  }
+}

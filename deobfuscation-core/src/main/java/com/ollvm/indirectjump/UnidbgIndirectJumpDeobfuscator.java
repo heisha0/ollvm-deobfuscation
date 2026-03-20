@@ -13,6 +13,8 @@ import com.github.unidbg.arm.backend.CodeHook;
 import com.github.unidbg.arm.backend.UnHook;
 import com.github.unidbg.pointer.UnidbgPointer;
 import com.github.unidbg.utils.Inspector;
+import com.ollvm.core.EmulatorManager;
+import com.ollvm.core.EnvironmentManager;
 import capstone.Capstone;
 import capstone.api.Instruction;
 import keystone.Keystone;
@@ -36,7 +38,7 @@ public class UnidbgIndirectJumpDeobfuscator {
     private static final String DEFAULT_OUTPUT_SUFFIX = "_patch";
 
     private final AndroidEmulator emulator;
-    private final Module module;
+    private Module module;  // 使用 EmulatorManager 时延迟设置
     private final String inputPath;
     private final String outputPath;
 
@@ -48,6 +50,30 @@ public class UnidbgIndirectJumpDeobfuscator {
     private boolean verbose = true;
     private int searchRangeStart = 0;
     private int searchRangeEnd = Integer.MAX_VALUE;
+    private String functionName = null;  // 按名称查找函数
+    private long functionOffset = -1;     // 按偏移调用函数
+
+    // 环境管理
+    private boolean ownsEmulator = false;  // 是否拥有模拟器的所有权
+    private EmulatorManager emulatorManager;  // 模拟器管理器（可选）
+    private EnvironmentPatcher legacyEnvironmentPatcher;  // 兼容旧版本的环境补充回调
+
+    /**
+     * 环境补充接口（旧版本，用于向后兼容）
+     * 已废弃，请使用 EnvironmentManager
+     */
+    @Deprecated
+    public interface EnvironmentPatcher {
+        /**
+         * 当模拟器需要补充环境时调用
+         *
+         * @param emulator 模拟器实例
+         * @param module    目标模块
+         * @param symbolName 缺失的符号名称（可为 null）
+         * @return true 如果成功补充环境，false 如果无法补充
+         */
+        boolean patchEnvironment(AndroidEmulator emulator, Module module, String symbolName);
+    }
 
     /**
      * 构造函数
@@ -67,6 +93,7 @@ public class UnidbgIndirectJumpDeobfuscator {
     public UnidbgIndirectJumpDeobfuscator(String inputPath, String outputPath) {
         this.inputPath = inputPath;
         this.outputPath = outputPath;
+        this.ownsEmulator = true;
 
         // 创建模拟器
         this.emulator = AndroidEmulatorBuilder.for64Bit()
@@ -96,6 +123,65 @@ public class UnidbgIndirectJumpDeobfuscator {
     }
 
     /**
+     * 构造函数 - 使用外部模拟器（推荐用于避免检测）
+     *
+     * @param emulator 已配置的模拟器实例（不关闭）
+     * @param module    已加载的模块
+     * @param inputPath  输入的 SO 文件路径（用于 Patch）
+     * @param outputPath 输出的 SO 文件路径
+     */
+    public UnidbgIndirectJumpDeobfuscator(AndroidEmulator emulator, Module module,
+                                         String inputPath, String outputPath) {
+        this.inputPath = inputPath;
+        this.outputPath = outputPath;
+        this.emulator = emulator;
+        this.module = module;
+        this.ownsEmulator = false;  // 不关闭外部传入的模拟器
+
+        // 初始化分析组件
+        this.instructionStack = new Stack<>();
+        this.patchList = new ArrayList<>();
+    }
+
+    /**
+     * 构造函数 - 使用 EmulatorManager（推荐）
+     *
+     * @param manager 模拟器管理器
+     * @param inputPath 输入的 SO 文件路径（用于 Patch）
+     * @param outputPath 输出的 SO 文件路径
+     */
+    public UnidbgIndirectJumpDeobfuscator(EmulatorManager manager,
+                                         String inputPath, String outputPath) {
+        if (manager == null) {
+            throw new IllegalArgumentException("EmulatorManager 不能为 null");
+        }
+        if (manager.isClosed()) {
+            throw new IllegalStateException("EmulatorManager 已关闭");
+        }
+
+        this.emulatorManager = manager;
+        this.emulator = manager.getEmulator();
+        this.inputPath = inputPath;
+        this.outputPath = outputPath;
+        this.ownsEmulator = false;  // 由 EmulatorManager 管理生命周期
+
+        // 初始化分析组件
+        this.instructionStack = new Stack<>();
+        this.patchList = new ArrayList<>();
+    }
+
+    /**
+     * 设置目标模块（使用 EmulatorManager 时需要调用）
+     *
+     * @param module 目标模块
+     * @return this
+     */
+    public UnidbgIndirectJumpDeobfuscator setModule(Module module) {
+        this.module = module;
+        return this;
+    }
+
+    /**
      * 设置详细输出模式
      */
     public UnidbgIndirectJumpDeobfuscator setVerbose(boolean verbose) {
@@ -113,18 +199,141 @@ public class UnidbgIndirectJumpDeobfuscator {
     }
 
     /**
-     * 执行去混淆
+     * 设置目标函数名称（用于符号查找）
+     */
+    public UnidbgIndirectJumpDeobfuscator setFunctionName(String name) {
+        this.functionName = name;
+        return this;
+    }
+
+    /**
+     * 设置目标函数偏移（直接使用偏移）
+     */
+    public UnidbgIndirectJumpDeobfuscator setFunctionOffset(long offset) {
+        this.functionOffset = offset;
+        return this;
+    }
+
+    /**
+     * 设置环境补充回调（旧版本，兼容性保留）
+     *
+     * @param patcher 环境补充器，用于在运行时补充缺失的 JNI 函数
+     * @return this
+     * @deprecated 请使用 EmulatorManager.getEnvironmentManager().addPatcher()
+     */
+    @Deprecated
+    public UnidbgIndirectJumpDeobfuscator setEnvironmentPatcher(EnvironmentPatcher patcher) {
+        this.legacyEnvironmentPatcher = patcher;
+        return this;
+    }
+
+    /**
+     * 查找函数地址（通过符号名称）
+     */
+    private Long findFunctionAddress(String name) {
+        com.github.unidbg.Symbol symbol = module.findSymbolByName(name);
+        if (symbol != null && !symbol.isUndef()) {
+            return symbol.getValue();
+        }
+        return null;
+    }
+
+    /**
+     * 确定目标函数地址
+     */
+    private long determineFunctionAddress() {
+        if (functionName != null) {
+            Long address = findFunctionAddress(functionName);
+            if (address == null) {
+                log("警告：未找到函数符号 '" + functionName + "'");
+                return -1;
+            }
+            return address;
+        }
+
+        if (functionOffset != -1) {
+            return module.base + functionOffset;
+        }
+
+        // 默认返回入口点（向后兼容，但已废弃）
+        return module.base + 0x10000;
+    }
+
+    /**
+     * 执行去混淆（可重复调用）
      */
     public boolean deobfuscate() {
         try {
+            // 清除之前的分析结果
+            this.instructionStack.clear();
+            this.patchList.clear();
+
             log("开始分析间接跳转...");
+            log("模块基地址: 0x" + Long.toHexString(module.base));
+
+            // 确定目标函数地址
+            long functionAddress = determineFunctionAddress();
+            if (functionAddress == -1) {
+                log("错误：未指定目标函数。请使用 setFunctionName() 或 setFunctionOffset() 设置目标。");
+                return false;
+            }
+
+            log("目标函数地址: 0x" + Long.toHexString(functionAddress));
 
             // 设置指令级 Hook
             setupInstructionHook();
 
-            // 运行目标函数（这里是简单运行，实际使用时需要调用目标函数）
-            log("运行初始化...");
-            module.callFunction(emulator, 0x10000);  // 默认入口点
+            // 运行目标函数（可能需要多次尝试）
+            int maxAttempts = 3;
+            boolean success = false;
+            Exception lastError = null;
+
+            for (int attempt = 1; attempt <= maxAttempts && !success; attempt++) {
+                try {
+                    log("执行目标函数... (尝试 " + attempt + "/" + maxAttempts + ")");
+                    module.callFunction(emulator, functionAddress);
+                    success = true;
+                } catch (Exception e) {
+                    lastError = e;
+                    log("执行失败: " + e.getMessage());
+
+                    // 如果设置了环境补充器，尝试补充环境
+                    if ((legacyEnvironmentPatcher != null ||
+                         (emulatorManager != null && emulatorManager.getEnvironmentManager().hasPatchers())) &&
+                        attempt < maxAttempts) {
+                        String missingSymbol = extractMissingSymbol(e);
+                        log("尝试补充环境... (缺失: " + (missingSymbol != null ? missingSymbol : "未知") + ")");
+
+                        boolean patched = false;
+
+                        // 优先使用 EmulatorManager 的环境补充器
+                        if (emulatorManager != null) {
+                            patched = emulatorManager.getEnvironmentManager().tryPatchEnvironment(
+                                    emulator, module, missingSymbol);
+                        }
+
+                        // 如果失败，尝试旧版本的补充器
+                        if (!patched && legacyEnvironmentPatcher != null) {
+                            patched = legacyEnvironmentPatcher.patchEnvironment(emulator, module, missingSymbol);
+                        }
+
+                        if (patched) {
+                            log("环境补充成功，重试...");
+                            continue;
+                        }
+                    }
+                    log("无法继续执行，放弃。");
+                    break;
+                }
+            }
+
+            if (!success && lastError != null) {
+                log("去混淆失败: " + lastError.getMessage());
+                if (verbose) {
+                    lastError.printStackTrace();
+                }
+                return false;
+            }
 
             // 生成 Patch 并应用
             applyPatches();
@@ -137,11 +346,10 @@ public class UnidbgIndirectJumpDeobfuscator {
 
         } catch (Exception e) {
             log("去混淆失败: " + e.getMessage());
-            e.printStackTrace();
+            if (verbose) {
+                e.printStackTrace();
+            }
             return false;
-
-        } finally {
-            cleanup();
         }
     }
 
@@ -559,11 +767,34 @@ public class UnidbgIndirectJumpDeobfuscator {
      * 清理资源
      */
     private void cleanup() {
-        try {
-            this.emulator.close();
-        } catch (IOException e) {
-            // 忽略关闭异常
+        // 只关闭自己创建的模拟器
+        if (ownsEmulator) {
+            try {
+                this.emulator.close();
+            } catch (IOException e) {
+                // 忽略关闭异常
+            }
         }
+    }
+
+    /**
+     * 从异常中提取缺失的符号名称
+     */
+    private String extractMissingSymbol(Exception e) {
+        String msg = e.getMessage();
+        if (msg == null) {
+            return null;
+        }
+
+        // Pattern: "find symbol failed: <symbol_name>"
+        if (msg.contains("find symbol failed")) {
+            int start = msg.indexOf(':');
+            if (start != -1) {
+                return msg.substring(start + 1).trim();
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -619,21 +850,66 @@ public class UnidbgIndirectJumpDeobfuscator {
      */
     public static void main(String[] args) {
         if (args.length == 0) {
-            System.out.println("用法: java UnidbgIndirectJumpDeobfuscator <so_file_path> [output_path]");
-            System.out.println("示例: java UnidbgIndirectJumpDeobfuscator libobfuscated.so");
+            System.out.println("OLLVM 间接跳转反混淆工具");
+            System.out.println("用法: java UnidbgIndirectJumpDeobfuscator <so_file_path> [选项]");
+            System.out.println();
+            System.out.println("选项:");
+            System.out.println("  -o <output_path>     指定输出文件路径");
+            System.out.println("  -f <function_name>    按符号名称指定目标函数");
+            System.out.println("  -x <offset>           按偏移指定目标函数（十六进制）");
+            System.out.println("  -r <start>-<end>      设置搜索范围（十六进制偏移）");
+            System.out.println("  -v                    启用详细输出");
+            System.out.println();
+            System.out.println("示例:");
+            System.out.println("  java UnidbgIndirectJumpDeobfuscator libobfuscated.so -f target_function");
+            System.out.println("  java UnidbgIndirectJumpDeobfuscator libobfuscated.so -x 0x10000 -o lib_patched.so");
             return;
         }
 
         String inputPath = args[0];
-        String outputPath = args.length > 1 ? args[1] : null;
+        String outputPath = null;
+        String functionName = null;
+        Long functionOffset = null;
+        int searchStart = 0;
+        int searchEnd = Integer.MAX_VALUE;
+        boolean verbose = true;
+
+        // 解析参数
+        for (int i = 1; i < args.length; i++) {
+            if (args[i].equals("-o") && i + 1 < args.length) {
+                outputPath = args[++i];
+            } else if (args[i].equals("-f") && i + 1 < args.length) {
+                functionName = args[++i];
+            } else if (args[i].equals("-x") && i + 1 < args.length) {
+                functionOffset = Long.parseLong(args[++i].replace("0x", ""), 16);
+            } else if (args[i].equals("-r") && i + 1 < args.length) {
+                String range = args[++i];
+                String[] parts = range.split("-");
+                if (parts.length == 2) {
+                    searchStart = Integer.parseInt(parts[0].replace("0x", ""), 16);
+                    searchEnd = Integer.parseInt(parts[1].replace("0x", ""), 16);
+                }
+            } else if (args[i].equals("-v")) {
+                verbose = true;
+            } else if (args[i].equals("-q")) {
+                verbose = false;
+            }
+        }
 
         UnidbgIndirectJumpDeobfuscator deobfuscator =
                 outputPath != null ? new UnidbgIndirectJumpDeobfuscator(inputPath, outputPath)
                                    : new UnidbgIndirectJumpDeobfuscator(inputPath);
 
         // 配置参数
-        deobfuscator.setVerbose(true)
-                   .setSearchRange(0x10000, 0x200000);
+        deobfuscator.setVerbose(verbose)
+                   .setSearchRange(searchStart, searchEnd);
+
+        if (functionName != null) {
+            deobfuscator.setFunctionName(functionName);
+        }
+        if (functionOffset != null) {
+            deobfuscator.setFunctionOffset(functionOffset);
+        }
 
         // 执行去混淆
         boolean success = deobfuscator.deobfuscate();

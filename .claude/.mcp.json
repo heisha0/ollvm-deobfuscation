@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "ida-pro-mcp": {
+      "type": "stdio",
+      "command": "ida-pro-mcp",
+      "args": ["--mcp"]
+    }
+  }
+}

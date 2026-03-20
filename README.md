@@ -1,10 +1,5 @@
 # OLLVM 反混淆工具库
 
-![Java](https://img.shields.io/badge/Java-8+-orange)
-![Maven](https://img.shields.io/badge/Maven-3.6+-red)
-![License](https://img.shields.io/badge/License-Apache%202.0-blue)
-![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
-
 一个用于对抗 OLLVM (Obfuscator-LLVM) 混淆的完整工具集，主要针对 ARM64 Android 共享库 (.so 文件)。
 
 ## 项目简介
@@ -272,27 +267,6 @@ mvn test -pl test
 
 A: 本项目已包含精简版 Unidbg 封装（unidbg-wrapper），无需额外配置。如需使用完整 Unidbg，参考 [Unidbg 官方文档](https://github.com/zhkl0228/unidbg)。
 
-### Q: 反混淆后程序无法运行怎么办？
-
-A:
-1. 检查分析范围是否正确
-2. 尝试调整搜索范围
-3. 检查是否还有其他混淆技术
-4. 使用更保守的 Patch 策略
-
-### Q: IDA Pro 脚本不起作用？
-
-A:
-1. 确保 IDA Pro 版本支持 Python 3
-2. 检查脚本路径是否正确
-3. 先运行 `idc.auto_wait()` 完成自动分析
-
-### Q: 字符串解密器找不到字符串？
-
-A:
-1. 确保运行了初始化函数
-2. 尝试手动触发解密
-3. 检查密钥是否正确提取
 
 ## 开发指南
 
@@ -361,5 +335,5 @@ limitations under the License.
 
 ## 联系方式
 
-- 提交问题：[GitHub Issues](https://github.com/your-username/ollvm-deobfuscation/issues)
-- 讨论交流：[GitHub Discussions](https://github.com/your-username/ollvm-deobfuscation/discussions)
+- 提交问题：
+- 讨论交流：
